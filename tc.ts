@@ -243,7 +243,7 @@ export function tcProgram(p : Stmt<any>[]) : Stmt<varType>[] {
         const rhs = tcExpr(s.value,localEnv,insideFunc,insideClass);
         //console.log(localEnv.vars.has(s.name))
         if(!localEnv.vars.has(s.name)){
-            throw new Error(`REFERENCE ERROR: Not a variable ${s.name}`);
+            throw new Error(`TYPE ERROR: Not a variable ${s.name}`);
         }
         if((localEnv.vars.get(s.name).value !== rhs.a.value) && !(localEnv.vars.get(s.name).tag==="object" && rhs.a.value==VarType.none)) {
           throw new Error(`TYPE ERROR: Expected \`${localEnv.vars.get(s.name).value}\`; but got ${rhs.a.value}`);
@@ -349,7 +349,7 @@ export function tcExpr(expr: Expr<any>, localenv:idMap,insideFunc:boolean,inside
     switch(expr.tag){
         case "id":
             if(!localenv.vars.has(expr.name)){
-                throw new Error(`REFERENCE ERROR: Not a variable ${expr.name}`);
+                throw new Error(`TYPE ERROR: Not a variable ${expr.name}`);
             }
             return {...expr, a:localenv.vars.get(expr.name)};
 
