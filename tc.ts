@@ -127,7 +127,31 @@ export function tcProgram(p : Stmt<any>[]) : Stmt<varType>[] {
 
   }
 
-  
+  export function checkReturnInBranch(s:Stmt<any>[]): boolean{
+      for(let i = 0; i<s.length;i++){
+          var st:Stmt<any> = s[i];
+          if(st.tag==="if" && typeof st.else !== 'undefined'){
+              var ifRet = false;
+              var elseRet = false;
+              st.ifbody.forEach((c)=>{
+                  if(c.tag==="return"){
+                      ifRet=true;
+                  }
+              });
+              st.else.body.forEach((d)=>{
+                  if(d.tag==="return"){
+                      elseRet=true;
+                  }
+              });
+
+              if(ifRet && elseRet){
+                  return true;
+              }
+              
+          }
+      }
+      return false;
+  }
   export function tcStmt(s : Stmt<any>, localEnv:idMap, currentReturn : varType, insideFunc:boolean,insideClass:boolean) : Stmt<varType> {
 
     switch(s.tag) {
@@ -157,6 +181,26 @@ export function tcProgram(p : Stmt<any>[]) : Stmt<varType>[] {
             throw new Error(`TYPE ERROR: Expected ${s.ret.value}, but got None`);
         }
         retSeen = false;
+
+        var funcRetSeen = false;
+        var brachArr:Stmt<any>[]=[];
+        newStmts.forEach((n)=>{
+            if(n.tag==="return"){
+                funcRetSeen = true;
+            }
+            if(n.tag==="if"){
+                brachArr.push(n);
+            }
+        });
+        var isValid = false;
+        if(!funcRetSeen && s.ret.value!==VarType.none){
+            // check if we have atleast one if else branch with return statement
+            isValid = checkReturnInBranch(brachArr);
+            if(!isValid){
+                throw new Error(`TYPE ERROR: All paths in the function/method must have a return statement: ${s.name}`);
+            }
+
+        }
         // var ret:any;
         // var retSeen:boolean=false;
         // newStmts.forEach((n)=>{
