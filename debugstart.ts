@@ -38,14 +38,14 @@ import {tcProgram} from "./tc"
 // `
 let source = `
 class Rat(object):
+      x:int = 1
       def __init__(self:Rat):
           pass
+      def hello(self:Rat,other:Rat):
+          print(other.x)
 
-r1:Rat = None
-r2:Rat = None
 
-if r1==r2:
-   pass
+Rat().hello(None)
 `
 var c = parseProgram(source);
 var ast = tcProgram(c)

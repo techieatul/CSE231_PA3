@@ -203,17 +203,18 @@ function tcStmt(s, localEnv, currentReturn, insideFunc, insideClass) {
             if (!localEnv.classFields.has(myFieldName)) {
                 throw new Error("REFERENCE ERROR: There is no attribute named ".concat(s.rvalue, " in class ").concat(myClassName));
             }
-            if (localEnv.classFields.get(myFieldName).value !== rval.a.value) {
+            if ((localEnv.classFields.get(myFieldName).value !== rval.a.value) && !(localEnv.classFields.get(myFieldName).tag === "object" && rval.a.value == ast_1.VarType.none)) {
                 throw new Error("TYPE ERROR: Expected ".concat(localEnv.classFields.get(myFieldName).value, " but got ").concat(rval.a.value));
             }
-            return __assign(__assign({}, s), { lvalue: lval, value: rval, a: lval.a });
+            // return {...s,lvalue:lval,value:rval,a:lval.a}
+            return __assign(__assign({}, s), { lvalue: lval, value: rval, a: localEnv.classFields.get(myFieldName) });
         }
         case "assign": {
             //console.log("Here")
             var rhs = tcExpr(s.value, localEnv, insideFunc, insideClass);
             //console.log(localEnv.vars.has(s.name))
             if (!localEnv.vars.has(s.name)) {
-                throw new Error("REFERENCE ERROR: Not a variable ".concat(s.name));
+                throw new Error("TYPE ERROR: Not a variable ".concat(s.name));
             }
             if ((localEnv.vars.get(s.name).value !== rhs.a.value) && !(localEnv.vars.get(s.name).tag === "object" && rhs.a.value == ast_1.VarType.none)) {
                 throw new Error("TYPE ERROR: Expected `".concat(localEnv.vars.get(s.name).value, "`; but got ").concat(rhs.a.value));
@@ -305,7 +306,7 @@ function tcExpr(expr, localenv, insideFunc, insideClass) {
     switch (expr.tag) {
         case "id":
             if (!localenv.vars.has(expr.name)) {
-                throw new Error("REFERENCE ERROR: Not a variable ".concat(expr.name));
+                throw new Error("TYPE ERROR: Not a variable ".concat(expr.name));
             }
             return __assign(__assign({}, expr), { a: localenv.vars.get(expr.name) });
         case "getField": {
@@ -333,7 +334,7 @@ function tcExpr(expr, localenv, insideFunc, insideClass) {
             var mynewArgs = [];
             for (var i = 1; i < methodArg.length; i++) {
                 var argtyp = tcExpr(expr.args[i - 1], localenv, insideFunc, insideClass);
-                if (argtyp.a.value !== methodArg[i].value) {
+                if ((argtyp.a.value !== methodArg[i].value) && !(argtyp.a.value === ast_1.VarType.none && methodArg[i].tag === "object")) {
                     throw new Error("TYPE ERROR: Got ".concat(argtyp.a.value, ", but expected ").concat(methodArg[i].value));
                 }
                 mynewArgs.push(argtyp);
@@ -403,7 +404,7 @@ function tcExpr(expr, localenv, insideFunc, insideClass) {
                 }
             }
             if (checkOpNone(opr)) {
-                if ((left.a.value === right.a.value) || (left.a.tag === "object" && right.a.value === ast_1.VarType.none) || (right.a.tag === "object" && left.a.value === ast_1.VarType.none)) {
+                if ((left.a.tag === "object" && right.a.tag === "object") || (left.a.tag === "object" && right.a.value === ast_1.VarType.none) || (right.a.tag === "object" && left.a.value === ast_1.VarType.none) || (left.a.value === ast_1.VarType.none && right.a.value === ast_1.VarType.none)) {
                     return __assign(__assign({}, expr), { left_opr: left, right_opr: right, a: { tag: "bool", value: ast_1.VarType.bool } });
                 }
                 else {

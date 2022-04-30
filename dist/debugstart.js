@@ -33,7 +33,7 @@ var tc_1 = require("./tc");
 // r:Rat = None
 // r.n = 1
 // `
-var source = "\nclass Rat(object):\n      def __init__(self:Rat):\n          pass\n\nr1:Rat = None\nr2:Rat = None\n\nif r1==r2:\n   pass\n";
+var source = "\nclass Rat(object):\n      x:int = 1\n      def __init__(self:Rat):\n          pass\n      def hello(self:Rat,other:Rat):\n          print(other.x)\n\n\nRat().hello(None)\n";
 var c = (0, parser_1.parseProgram)(source);
 var ast = (0, tc_1.tcProgram)(c);
 var wat = (0, compiler_1.compile)(source);

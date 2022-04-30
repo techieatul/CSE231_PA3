@@ -168,7 +168,7 @@ export function tcProgram(p : Stmt<any>[]) : Stmt<varType>[] {
         if(retSeen && ret.value!==s.ret.value){
             throw new Error(`TYPE ERROR: Expected ${s.ret.value}, but got ${ret.value}`);
         }
-        if(!retSeen && s.ret.value!==VarType.none){
+        if(!retSeen && (s.ret.value!==VarType.none)){
             throw new Error(`TYPE ERROR: Expected ${s.ret.value}, but got None`);
         }
         // Go through the statements and check if we have return statement
@@ -215,6 +215,12 @@ export function tcProgram(p : Stmt<any>[]) : Stmt<varType>[] {
           s.methods.forEach((m)=>{
               let myfuncStmt = tcStmt(m,ClassEnv,m.ret,true,true);
               if(myfuncStmt.tag==="FuncDef"){
+                  if(m.name==="__init__"){
+                     // check init body size
+                     if(m.params.length>1){
+                         throw new Error("TYPE ERROR: Method overriden with different type signature: __init__");
+                     }
+                  }
                   let myfunc:FuncDef<any> = {a:myfuncStmt.ret,tag: "FuncDef",name: myfuncStmt.name,params:myfuncStmt.params,ret:myfuncStmt.ret,init:myfuncStmt.init,body:myfuncStmt.body};
                   myFunc.push(myfunc);
               }
@@ -232,10 +238,11 @@ export function tcProgram(p : Stmt<any>[]) : Stmt<varType>[] {
           if(!localEnv.classFields.has(myFieldName)){
               throw new Error(`REFERENCE ERROR: There is no attribute named ${s.rvalue} in class ${myClassName}`);
           }
-          if(localEnv.classFields.get(myFieldName).value!==rval.a.value){
+          if((localEnv.classFields.get(myFieldName).value!==rval.a.value) && !(localEnv.classFields.get(myFieldName).tag === "object" && rval.a.value==VarType.none)){
               throw new Error(`TYPE ERROR: Expected ${localEnv.classFields.get(myFieldName).value} but got ${rval.a.value}`);
           }
-          return {...s,lvalue:lval,value:rval,a:lval.a}
+         // return {...s,lvalue:lval,value:rval,a:lval.a}
+         return {...s,lvalue:lval,value:rval,a:localEnv.classFields.get(myFieldName)}
           
       }
       case "assign": {
@@ -324,6 +331,7 @@ export function tcProgram(p : Stmt<any>[]) : Stmt<varType>[] {
         }
         if(typeof s.return != 'undefined'){
             const valTyp = tcExpr(s.return, localEnv,insideFunc,insideClass);
+            
             // Added to support None returned for object
             if(currentReturn.tag==="object" && valTyp.a.value===VarType.none){
                 return {...s,return:valTyp,a:valTyp.a}
@@ -380,7 +388,7 @@ export function tcExpr(expr: Expr<any>, localenv:idMap,insideFunc:boolean,inside
             var mynewArgs:Expr<varType>[] = [];
             for (let i = 1; i < methodArg.length; i++) {
                 let argtyp = tcExpr(expr.args[i-1], localenv,insideFunc,insideClass);
-                if(argtyp.a.value!==methodArg[i].value){
+                if((argtyp.a.value!==methodArg[i].value) && !(argtyp.a.value===VarType.none && methodArg[i].tag==="object")){
                     throw new Error(`TYPE ERROR: Got ${argtyp.a.value}, but expected ${methodArg[i].value}`);
                 }
                 mynewArgs.push(argtyp);
@@ -457,7 +465,8 @@ export function tcExpr(expr: Expr<any>, localenv:idMap,insideFunc:boolean,inside
                 }
             } 
             if(checkOpNone(opr)){
-                if((left.a.tag===right.a.tag) || (left.a.tag==="object" && right.a.value===VarType.none) || (right.a.tag==="object" && left.a.value===VarType.none)){
+                
+                if((left.a.tag === "object" && right.a.tag==="object") || (left.a.tag==="object" && right.a.value===VarType.none) || (right.a.tag==="object" && left.a.value===VarType.none) || (left.a.value===VarType.none && right.a.value===VarType.none)){
                     return {...expr,left_opr:left, right_opr:right,a:{tag:"bool",value:VarType.bool}};
                 }else{
                     throw new Error(`TYPE ERROR: Cannot apply operator \`${opr}\` on types \`${left.a.value}\` and ${right.a.value}`);
