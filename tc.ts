@@ -3,6 +3,7 @@ import { endianness, loadavg, type } from 'os';
 import { env } from 'process';
 import { isJSDocNamepathType, parseCommandLine } from 'typescript';
 import {VarType,BinBoolOpMap,Stmt,Expr,BinaryOP,Var,FuncDef,TypedVar,Literal,Elif,Else, UniOp,varType} from './ast'
+var retSeen:boolean = false;
 
 type idMap = {
     vars: Map<string,varType>,
@@ -19,6 +20,7 @@ type idMap = {
 export function tcProgram(p : Stmt<any>[]) : Stmt<varType>[] {
     //const functions = new Map<string, [VarType[], VarType]>();
     //const globals = new Map<string, VarType>();
+    retSeen = false;
     const EnvMaps:idMap = {} as idMap;
     EnvMaps.vars = new Map<string, varType>();
     EnvMaps.func = new Map<string,[varType[],varType]>();
@@ -143,6 +145,7 @@ export function tcProgram(p : Stmt<any>[]) : Stmt<varType>[] {
         var classNames = new Map<string,[string,Array<string>,Array<string>]>(localEnv.class.entries());
         var classF = new Map<string,varType>(localEnv.classFields.entries());
         var classM = new Map<string,[varType[],varType]>(localEnv.classMethod.entries());
+        retSeen = false;
         s.params.forEach(p => { bodyvars.set(p.name, p.type)});
         FuncEnvMaps.vars = bodyvars;
         FuncEnvMaps.func = funcvars; 
@@ -150,27 +153,31 @@ export function tcProgram(p : Stmt<any>[]) : Stmt<varType>[] {
         FuncEnvMaps.classFields = classF;
         FuncEnvMaps.classMethod = classM;
         const newStmts = s.body.map(bs => tcStmt(bs, FuncEnvMaps, s.ret,true,insideClass));
-        var ret:any;
-        var retSeen:boolean=false;
-        newStmts.forEach((n)=>{
-            if(n.tag==="return"){
-                retSeen = true;
-                if(n.a.tag==="object"){
-                    ret = {tag:"object",value:n.a.value}
-                }else{
-                    ret = n.a;
-                }
-            }
-        });
-        if(retSeen && s.ret.tag==="object" && ret.value===VarType.none){
-            return {...s,body:newStmts,a:s.ret};
-        }
-        if(retSeen && ret.value!==s.ret.value){
-            throw new Error(`TYPE ERROR: Expected ${s.ret.value}, but got ${ret.value}`);
-        }
-        if(!retSeen && (s.ret.value!==VarType.none)){
+        if(!retSeen && s.ret.value!==VarType.none){
             throw new Error(`TYPE ERROR: Expected ${s.ret.value}, but got None`);
         }
+        retSeen = false;
+        // var ret:any;
+        // var retSeen:boolean=false;
+        // newStmts.forEach((n)=>{
+        //     if(n.tag==="return"){
+        //         retSeen = true;
+        //         if(n.a.tag==="object"){
+        //             ret = {tag:"object",value:n.a.value}
+        //         }else{
+        //             ret = n.a;
+        //         }
+        //     }
+        // });
+        // if(retSeen && s.ret.tag==="object" && ret.value===VarType.none){
+        //     return {...s,body:newStmts,a:s.ret};
+        // }
+        // if(retSeen && ret.value!==s.ret.value){
+        //     throw new Error(`TYPE ERROR: Expected ${s.ret.value}, but got ${ret.value}`);
+        // }
+        // if(!retSeen && (s.ret.value!==VarType.none)){
+        //     throw new Error(`TYPE ERROR: Expected ${s.ret.value}, but got None`);
+        // }
         // Go through the statements and check if we have return statement
 
 
@@ -330,8 +337,9 @@ export function tcProgram(p : Stmt<any>[]) : Stmt<varType>[] {
             throw new Error(`PARSE ERROR: Return statement cannot appear at top level`);
         }
         if(typeof s.return != 'undefined'){
+            retSeen = true;
             const valTyp = tcExpr(s.return, localEnv,insideFunc,insideClass);
-            
+
             // Added to support None returned for object
             if(currentReturn.tag==="object" && valTyp.a.value===VarType.none){
                 return {...s,return:valTyp,a:valTyp.a}
